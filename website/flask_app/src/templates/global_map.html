@@ -1,0 +1,338 @@
+{% extends 'base.html' %}
+
+{% block title %}Toronto AI Weather - Global Map{% endblock %}
+
+{% block head %}
+<style>
+    .map-container {
+        height: 70vh;
+        width: 100%;
+        margin-bottom: 2rem;
+    }
+    
+    .map-controls {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+    }
+    
+    .map-layers {
+        display: flex;
+        gap: 1rem;
+    }
+    
+    .layer-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .layer-toggle input {
+        width: auto;
+        margin: 0;
+    }
+    
+    .map-legend {
+        background-color: var(--dark-bg);
+        padding: 1rem;
+        border-radius: var(--border-radius);
+        margin-top: 1rem;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        margin-right: 0.5rem;
+        border-radius: 3px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Global Weather Map</h1>
+
+<div class="map-controls">
+    <div class="map-layers">
+        <div class="layer-toggle">
+            <input type="checkbox" id="temperature-layer" checked>
+            <label for="temperature-layer">Temperature</label>
+        </div>
+        <div class="layer-toggle">
+            <input type="checkbox" id="precipitation-layer">
+            <label for="precipitation-layer">Precipitation</label>
+        </div>
+        <div class="layer-toggle">
+            <input type="checkbox" id="wind-layer">
+            <label for="wind-layer">Wind</label>
+        </div>
+        <div class="layer-toggle">
+            <input type="checkbox" id="pressure-layer">
+            <label for="pressure-layer">Pressure</label>
+        </div>
+    </div>
+    
+    <div class="map-time-controls">
+        <select id="time-selector">
+            <option value="current">Current</option>
+            <option value="6h">+6 hours</option>
+            <option value="12h">+12 hours</option>
+            <option value="24h">+24 hours</option>
+            <option value="48h">+48 hours</option>
+        </select>
+    </div>
+</div>
+
+<div id="map" class="map-container global-map" data-zoom="2" data-lat="20" data-lon="0"></div>
+
+<div class="map-legend">
+    <h3>Temperature Legend</h3>
+    <div class="legend-items">
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #0000ff;"></div>
+            <span>-20°C and below</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #00ffff;"></div>
+            <span>-10°C to -20°C</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #00ff00;"></div>
+            <span>0°C to -10°C</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #ffff00;"></div>
+            <span>10°C to 0°C</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #ff7700;"></div>
+            <span>20°C to 10°C</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #ff0000;"></div>
+            <span>30°C to 20°C</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #800000;"></div>
+            <span>30°C and above</span>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Global Weather Insights</h3>
+    </div>
+    
+    <div class="global-insights">
+        <p>The global weather system is currently showing {{ global_insights.major_systems }} major weather systems affecting various regions. The most significant are:</p>
+        
+        <ul>
+            {% for system in global_insights.significant_systems %}
+            <li>
+                <strong>{{ system.name }}</strong>: {{ system.description }}
+                {% if system.affected_regions %}
+                <span>Affecting: {{ system.affected_regions|join(', ') }}</span>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        
+        <p>Global average temperature is currently {{ "%.1f"|format(global_insights.avg_temperature) }}°C, which is {{ "%.1f"|format(global_insights.temp_anomaly) }}°C {{ "above" if global_insights.temp_anomaly > 0 else "below" }} the historical average for this date.</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>System Performance</h3>
+    </div>
+    
+    <div class="system-performance">
+        <p>The Toronto AI Weather system is currently processing data from {{ system_performance.data_sources }} sources with {{ system_performance.active_devices }} active devices contributing computational power.</p>
+        
+        <div class="performance-metrics">
+            <div class="metric">
+                <div class="metric-label">Global Prediction Accuracy</div>
+                <div class="progress-bar">
+                    <div class="progress-bar-fill" style="width: {{ system_performance.global_accuracy * 100 }}%"></div>
+                </div>
+                <div class="metric-value">{{ "%.1f"|format(system_performance.global_accuracy * 100) }}%</div>
+            </div>
+            
+            <div class="metric">
+                <div class="metric-label">System Load</div>
+                <div class="progress-bar">
+                    <div class="progress-bar-fill {{ 'warning' if system_performance.system_load > 0.7 else '' }}" style="width: {{ system_performance.system_load * 100 }}%"></div>
+                </div>
+                <div class="metric-value">{{ "%.1f"|format(system_performance.system_load * 100) }}%</div>
+            </div>
+            
+            <div class="metric">
+                <div class="metric-label">Data Freshness</div>
+                <div class="progress-bar">
+                    <div class="progress-bar-fill" style="width: {{ system_performance.data_freshness * 100 }}%"></div>
+                </div>
+                <div class="metric-value">{{ "%.1f"|format(system_performance.data_freshness * 100) }}%</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const map = window.currentMap;
+        
+        if (!map) return;
+        
+        // Layer toggles
+        const temperatureLayer = document.getElementById('temperature-layer');
+        const precipitationLayer = document.getElementById('precipitation-layer');
+        const windLayer = document.getElementById('wind-layer');
+        const pressureLayer = document.getElementById('pressure-layer');
+        
+        // Time selector
+        const timeSelector = document.getElementById('time-selector');
+        
+        // Layer objects (would be created with actual data in production)
+        let tempOverlay = null;
+        let precipOverlay = null;
+        let windOverlay = null;
+        let pressureOverlay = null;
+        
+        // Initialize temperature layer
+        function initTemperatureLayer() {
+            // In production, this would fetch real temperature data
+            // For now, use a placeholder image
+            const bounds = [[-90, -180], [90, 180]];
+            tempOverlay = L.imageOverlay('/static/img/temp_overlay.png', bounds, {
+                opacity: 0.7,
+                interactive: false
+            }).addTo(map);
+        }
+        
+        // Initialize precipitation layer
+        function initPrecipitationLayer() {
+            // In production, this would fetch real precipitation data
+            const bounds = [[-90, -180], [90, 180]];
+            precipOverlay = L.imageOverlay('/static/img/precip_overlay.png', bounds, {
+                opacity: 0.7,
+                interactive: false
+            });
+        }
+        
+        // Initialize wind layer
+        function initWindLayer() {
+            // In production, this would create a wind velocity layer
+            // For now, just a placeholder
+            windOverlay = L.layerGroup();
+            
+            // Add some wind arrows as a placeholder
+            for (let lat = -80; lat <= 80; lat += 20) {
+                for (let lon = -160; lon <= 160; lon += 20) {
+                    const arrow = L.marker([lat, lon], {
+                        icon: L.divIcon({
+                            html: '<i class="fas fa-arrow-up" style="color: white; transform: rotate(' + Math.random() * 360 + 'deg);"></i>',
+                            className: 'wind-arrow',
+                            iconSize: [20, 20]
+                        })
+                    });
+                    windOverlay.addLayer(arrow);
+                }
+            }
+        }
+        
+        // Initialize pressure layer
+        function initPressureLayer() {
+            // In production, this would fetch real pressure data
+            const bounds = [[-90, -180], [90, 180]];
+            pressureOverlay = L.imageOverlay('/static/img/pressure_overlay.png', bounds, {
+                opacity: 0.7,
+                interactive: false
+            });
+        }
+        
+        // Initialize all layers
+        initTemperatureLayer();
+        initPrecipitationLayer();
+        initWindLayer();
+        initPressureLayer();
+        
+        // Layer toggle event listeners
+        temperatureLayer.addEventListener('change', function() {
+            if (this.checked) {
+                if (!tempOverlay) initTemperatureLayer();
+                else map.addLayer(tempOverlay);
+            } else {
+                if (tempOverlay) map.removeLayer(tempOverlay);
+            }
+        });
+        
+        precipitationLayer.addEventListener('change', function() {
+            if (this.checked) {
+                if (!precipOverlay) initPrecipitationLayer();
+                map.addLayer(precipOverlay);
+            } else {
+                if (precipOverlay) map.removeLayer(precipOverlay);
+            }
+        });
+        
+        windLayer.addEventListener('change', function() {
+            if (this.checked) {
+                if (!windOverlay) initWindLayer();
+                map.addLayer(windOverlay);
+            } else {
+                if (windOverlay) map.removeLayer(windOverlay);
+            }
+        });
+        
+        pressureLayer.addEventListener('change', function() {
+            if (this.checked) {
+                if (!pressureOverlay) initPressureLayer();
+                map.addLayer(pressureOverlay);
+            } else {
+                if (pressureOverlay) map.removeLayer(pressureOverlay);
+            }
+        });
+        
+        // Time selector event listener
+        timeSelector.addEventListener('change', function() {
+            const time = this.value;
+            
+            // In production, this would fetch data for the selected time
+            // For now, just log the selection
+            console.log('Selected time:', time);
+            
+            // Simulate updating the layers
+            if (tempOverlay) {
+                map.removeLayer(tempOverlay);
+                initTemperatureLayer();
+            }
+            
+            if (precipOverlay && precipitationLayer.checked) {
+                map.removeLayer(precipOverlay);
+                initPrecipitationLayer();
+                map.addLayer(precipOverlay);
+            }
+            
+            if (windOverlay && windLayer.checked) {
+                map.removeLayer(windOverlay);
+                initWindLayer();
+                map.addLayer(windOverlay);
+            }
+            
+            if (pressureOverlay && pressureLayer.checked) {
+                map.removeLayer(pressureOverlay);
+                initPressureLayer();
+                map.addLayer(pressureOverlay);
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,402 @@
+{% extends 'base.html' %}
+
+{% block title %}Toronto AI Weather - Dashboard{% endblock %}
+
+{% block head %}
+<style>
+    .agent-thinking-dialog {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 350px;
+        max-height: 400px;
+        overflow-y: auto;
+        background-color: var(--dark-bg);
+        border: 1px solid var(--primary-color);
+        border-radius: var(--border-radius);
+        padding: 15px;
+        box-shadow: var(--box-shadow);
+        z-index: 1000;
+        display: none;
+    }
+    
+    .agent-thinking-dialog.active {
+        display: block;
+    }
+    
+    .agent-thinking-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        border-bottom: 1px solid var(--light-bg);
+        padding-bottom: 5px;
+    }
+    
+    .agent-thinking-title {
+        color: var(--primary-color);
+        font-weight: 600;
+        margin: 0;
+    }
+    
+    .agent-thinking-close {
+        background: none;
+        border: none;
+        color: var(--text-color);
+        cursor: pointer;
+        font-size: 1.2rem;
+    }
+    
+    .agent-thinking-content {
+        font-family: monospace;
+        white-space: pre-wrap;
+        color: var(--secondary-color);
+    }
+    
+    .agent-thinking-footer {
+        margin-top: 10px;
+        text-align: right;
+        font-size: 0.8rem;
+        color: var(--text-color);
+        opacity: 0.7;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Welcome, {{ current_user.username }}</h1>
+    <p class="user-tier">Account Tier: <span class="badge {{ tier_class }}">{{ current_user.tier }}</span></p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ user_stats.saved_locations }}</div>
+        <div class="stat-label">Saved Locations</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-value">{{ user_stats.alerts }}</div>
+        <div class="stat-label">Active Alerts</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-value">{{ user_stats.devices }}</div>
+        <div class="stat-label">Connected Devices</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-value">{{ user_stats.contribution_score }}</div>
+        <div class="stat-label">Contribution Score</div>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="card">
+        <div class="card-header">
+            <h3>Your Locations</h3>
+            <a href="{{ url_for('weather.add_location') }}" class="button">Add Location</a>
+        </div>
+        
+        {% if saved_locations %}
+        <div class="location-list">
+            {% for location in saved_locations %}
+            <div class="location-item">
+                <div class="location-info">
+                    <div class="location-name">{{ location.name }}</div>
+                    <div class="location-coords">{{ location.latitude }}, {{ location.longitude }}</div>
+                </div>
+                <div class="location-weather">
+                    <div class="location-temp">{{ "%.1f"|format(location.current_weather.temperature) }}°C</div>
+                    <div class="location-condition">{{ location.current_weather.weather_condition }}</div>
+                </div>
+                <div class="location-actions">
+                    <a href="{{ url_for('weather.detail', location_id=location.id) }}" class="button">View</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>You haven't saved any locations yet.</p>
+            <a href="{{ url_for('weather.add_location') }}" class="button">Add Your First Location</a>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h3>Your Devices</h3>
+            <button id="register-device-button" data-user-id="{{ current_user.id }}" class="button">Add Device</button>
+        </div>
+        
+        {% if user_devices %}
+        <div class="device-list">
+            {% for device in user_devices %}
+            <div class="device-card">
+                <div class="device-icon">
+                    <i class="fas {{ get_device_icon(device.type) }}"></i>
+                </div>
+                <div class="device-info">
+                    <div class="device-name">{{ device.name }}</div>
+                    <div class="device-meta">
+                        {{ device.os_name }} | {{ device.cpu_cores }} cores | {{ device.memory_total }}MB
+                    </div>
+                    <div class="device-status">
+                        {% if device.is_active %}
+                        <span class="badge success">Active</span>
+                        {% else %}
+                        <span class="badge">Inactive</span>
+                        {% endif %}
+                        <div class="progress-bar" title="Resource allocation: {{ device.max_resource_allocation * 100 }}%">
+                            <div class="progress-bar-fill" style="width: {{ device.max_resource_allocation * 100 }}%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="device-actions">
+                    <button class="device-settings-button" data-device-id="{{ device.id }}">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>You haven't registered any devices yet.</p>
+            <button id="register-device-button" data-user-id="{{ current_user.id }}" class="button">Register Your Device</button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>System Activity</h3>
+    </div>
+    
+    <div class="tabs">
+        <div class="tab active" data-target="tab-tasks">Tasks</div>
+        <div class="tab" data-target="tab-agents">Agents</div>
+        <div class="tab" data-target="tab-metrics">Metrics</div>
+    </div>
+    
+    <div id="tab-tasks" class="tab-content active">
+        <div class="task-list">
+            {% for task in user_tasks %}
+            <div class="task-item">
+                <div class="task-info">
+                    <div class="task-type">{{ task.task_type }}</div>
+                    <div class="task-time">{{ task.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                </div>
+                <div class="task-status">
+                    <span class="badge {{ get_task_status_class(task.status) }}">{{ task.status }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div id="tab-agents" class="tab-content">
+        <div class="agent-list">
+            {% for agent in system_agents %}
+            <div class="agent-card">
+                <div class="agent-icon">
+                    <i class="fas {{ get_agent_icon(agent.type) }}"></i>
+                </div>
+                <div class="agent-info">
+                    <div class="agent-name">{{ agent.name }}</div>
+                    <div class="agent-type">{{ agent.type }}</div>
+                    <div class="agent-status">
+                        <span class="badge {{ 'success' if agent.is_active else '' }}">
+                            {{ 'Active' if agent.is_active else 'Inactive' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="agent-actions">
+                    <button class="view-agent-button" data-agent-id="{{ agent.id }}">View</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div id="tab-metrics" class="tab-content">
+        <div class="chart-container">
+            <img src="data:image/png;base64,{{ system_metrics_chart }}" alt="System Metrics" class="chart-image">
+        </div>
+    </div>
+</div>
+
+<!-- Agent Thinking Dialog -->
+<div id="agent-thinking-dialog" class="agent-thinking-dialog">
+    <div class="agent-thinking-header">
+        <h4 class="agent-thinking-title">Agent Reasoning</h4>
+        <button class="agent-thinking-close">&times;</button>
+    </div>
+    <div class="agent-thinking-content">
+        Analyzing weather patterns...
+        Checking satellite data for cloud formations...
+        Comparing with historical patterns...
+        Calculating precipitation probability...
+        Adjusting for local terrain effects...
+        Finalizing prediction...
+    </div>
+    <div class="agent-thinking-footer">
+        Agent: <span id="agent-name">Weather Prediction Agent</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Agent thinking dialog functionality
+        const viewAgentButtons = document.querySelectorAll('.view-agent-button');
+        const agentThinkingDialog = document.getElementById('agent-thinking-dialog');
+        const agentThinkingClose = document.querySelector('.agent-thinking-close');
+        const agentThinkingContent = document.querySelector('.agent-thinking-content');
+        const agentNameSpan = document.getElementById('agent-name');
+        
+        // Sample agent thinking content for different agent types
+        const agentThinkingData = {
+            'data_collection': `Connecting to NOAA data source...
+Retrieving latest satellite imagery...
+Processing radar data...
+Analyzing ground station measurements...
+Validating data integrity...
+Cross-referencing with secondary sources...
+Data collection complete.`,
+            
+            'prediction': `Loading temperature prediction model...
+Analyzing historical patterns...
+Identifying relevant weather systems...
+Calculating pressure gradients...
+Modeling atmospheric dynamics...
+Adjusting for terrain effects...
+Finalizing temperature prediction...
+Confidence score: 94.2%`,
+            
+            'anomaly_detection': `Scanning for pattern deviations...
+Comparing to historical baselines...
+Analyzing temperature gradients...
+Checking pressure system movements...
+Evaluating precipitation anomalies...
+Detecting unusual wind patterns...
+No significant anomalies detected in target region.`,
+            
+            'coordination': `Monitoring system load...
+Distributing tasks to available devices...
+Prioritizing prediction requests...
+Allocating resources to high-priority regions...
+Balancing computational load...
+Optimizing network utilization...
+System operating at 78% efficiency.`
+        };
+        
+        // Show agent thinking dialog when view button is clicked
+        viewAgentButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const agentId = this.getAttribute('data-agent-id');
+                const agentCard = this.closest('.agent-card');
+                const agentType = agentCard.querySelector('.agent-type').textContent.toLowerCase();
+                const agentName = agentCard.querySelector('.agent-name').textContent;
+                
+                // Set agent name in dialog
+                agentNameSpan.textContent = agentName;
+                
+                // Get thinking content based on agent type
+                let thinkingContent = agentThinkingData[agentType] || agentThinkingData['prediction'];
+                
+                // Clear existing content
+                agentThinkingContent.textContent = '';
+                
+                // Show dialog
+                agentThinkingDialog.classList.add('active');
+                
+                // Animate thinking content typing effect
+                let i = 0;
+                const lines = thinkingContent.split('\n');
+                
+                function typeLine(lineIndex) {
+                    if (lineIndex >= lines.length) return;
+                    
+                    const line = lines[lineIndex];
+                    let charIndex = 0;
+                    
+                    function typeChar() {
+                        if (charIndex < line.length) {
+                            agentThinkingContent.textContent += line[charIndex];
+                            charIndex++;
+                            setTimeout(typeChar, 20);
+                        } else {
+                            agentThinkingContent.textContent += '\n';
+                            setTimeout(() => typeLine(lineIndex + 1), 300);
+                        }
+                    }
+                    
+                    typeChar();
+                }
+                
+                typeLine(0);
+            });
+        });
+        
+        // Close dialog when close button is clicked
+        if (agentThinkingClose) {
+            agentThinkingClose.addEventListener('click', function() {
+                agentThinkingDialog.classList.remove('active');
+            });
+        }
+        
+        // Device settings functionality
+        const deviceSettingsButtons = document.querySelectorAll('.device-settings-button');
+        
+        deviceSettingsButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const deviceId = this.getAttribute('data-device-id');
+                // In a real implementation, this would open a modal with device settings
+                alert(`Device settings for device ID: ${deviceId}\n\nHere you can adjust resource allocation and other settings.`);
+            });
+        });
+    });
+    
+    // Helper function to get device icon
+    function get_device_icon(type) {
+        const iconMap = {
+            'desktop': 'fa-desktop',
+            'laptop': 'fa-laptop',
+            'tablet': 'fa-tablet-alt',
+            'mobile': 'fa-mobile-alt',
+            'server': 'fa-server'
+        };
+        
+        return iconMap[type.toLowerCase()] || 'fa-microchip';
+    }
+    
+    // Helper function to get agent icon
+    function get_agent_icon(type) {
+        const iconMap = {
+            'data_collection': 'fa-database',
+            'prediction': 'fa-chart-line',
+            'anomaly_detection': 'fa-exclamation-triangle',
+            'coordination': 'fa-sitemap'
+        };
+        
+        return iconMap[type.toLowerCase()] || 'fa-robot';
+    }
+    
+    // Helper function to get task status class
+    function get_task_status_class(status) {
+        const classMap = {
+            'completed': 'success',
+            'failed': 'danger',
+            'processing': 'primary',
+            'queued': 'secondary',
+            'assigned': 'accent'
+        };
+        
+        return classMap[status.toLowerCase()] || '';
+    }
+</script>
+{% endblock %}

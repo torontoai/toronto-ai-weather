@@ -1,0 +1,254 @@
+{% extends 'base.html' %}
+
+{% block title %}Toronto AI Weather - Home{% endblock %}
+
+{% block content %}
+<div class="hero-section">
+    <div class="hero-content">
+        <h1>Global Weather Prediction Powered by Distributed Intelligence</h1>
+        <p class="hero-subtitle">Toronto AI Weather harnesses the power of every connected device to create the world's most accurate weather prediction system.</p>
+        
+        <div class="location-search">
+            <form action="{{ url_for('weather.search') }}" method="get">
+                <input type="text" name="location" id="location-input" placeholder="Enter your location">
+                <button type="submit">Get Weather</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="features-section">
+    <h2>Why Toronto AI Weather?</h2>
+    
+    <div class="grid">
+        <div class="card feature-card">
+            <div class="feature-icon">
+                <i class="fas fa-network-wired"></i>
+            </div>
+            <h3>Distributed Computing</h3>
+            <p>Every device that connects contributes processing power, creating a global neural weather prediction network.</p>
+        </div>
+        
+        <div class="card feature-card">
+            <div class="feature-icon">
+                <i class="fas fa-brain"></i>
+            </div>
+            <h3>AI-Powered Predictions</h3>
+            <p>Advanced machine learning models analyze patterns from 100+ data sources for unprecedented accuracy.</p>
+        </div>
+        
+        <div class="card feature-card">
+            <div class="feature-icon">
+                <i class="fas fa-globe"></i>
+            </div>
+            <h3>Global Coverage</h3>
+            <p>Predict local weather anywhere on the globe with precision that increases as our network grows.</p>
+        </div>
+        
+        <div class="card feature-card">
+            <div class="feature-icon">
+                <i class="fas fa-robot"></i>
+            </div>
+            <h3>Multi-Agent System</h3>
+            <p>Specialized AI agents work together to collect data, train models, and generate predictions.</p>
+        </div>
+    </div>
+</div>
+
+{% if current_weather %}
+<div class="current-weather-section">
+    <h2>Current Weather</h2>
+    
+    <div class="card weather-card">
+        <div class="location-name">{{ current_weather.location.name }}</div>
+        <div class="weather-icon">
+            <i class="fas {{ get_weather_icon(current_weather.weather_condition) }}"></i>
+        </div>
+        <div class="temperature">{{ "%.1f"|format(current_weather.temperature) }}°C</div>
+        <div class="weather-condition">{{ current_weather.weather_description }}</div>
+        
+        <div class="weather-details">
+            <div class="weather-detail-item">
+                <div class="weather-detail-label">Feels Like</div>
+                <div class="weather-detail-value">{{ "%.1f"|format(current_weather.feels_like) }}°C</div>
+            </div>
+            <div class="weather-detail-item">
+                <div class="weather-detail-label">Humidity</div>
+                <div class="weather-detail-value">{{ current_weather.humidity }}%</div>
+            </div>
+            <div class="weather-detail-item">
+                <div class="weather-detail-label">Wind</div>
+                <div class="weather-detail-value">{{ "%.1f"|format(current_weather.wind_speed) }} m/s</div>
+            </div>
+            <div class="weather-detail-item">
+                <div class="weather-detail-label">Pressure</div>
+                <div class="weather-detail-value">{{ current_weather.pressure }} hPa</div>
+            </div>
+        </div>
+        
+        <a href="{{ url_for('weather.detail', location_id=current_weather.location_id) }}" class="button">View Details</a>
+    </div>
+</div>
+{% endif %}
+
+<div class="system-stats-section">
+    <h2>System Statistics</h2>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ system_stats.active_devices }}</div>
+            <div class="stat-label">Active Devices</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-value">{{ "%.2f"|format(system_stats.average_prediction_accuracy * 100) }}%</div>
+            <div class="stat-label">Prediction Accuracy</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-value">{{ system_stats.completed_tasks }}</div>
+            <div class="stat-label">Completed Tasks</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-value">{{ "%.1f"|format(system_stats.total_cpu_power) }}</div>
+            <div class="stat-label">Total CPU Power</div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h3>System Load</h3>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress-bar-fill" style="width: {{ system_stats.system_load * 100 }}%"></div>
+        </div>
+        <div class="progress-label">{{ "%.1f"|format(system_stats.system_load * 100) }}% of capacity</div>
+        
+        {% if not current_user.is_authenticated %}
+        <div class="cta-box">
+            <p>Join our global network and contribute to better weather predictions worldwide.</p>
+            <a href="{{ url_for('auth.register') }}" class="button">Register Now</a>
+        </div>
+        {% else %}
+        <div class="cta-box">
+            <p>Contribute your device's processing power to improve weather predictions.</p>
+            <button id="register-device-button" data-user-id="{{ current_user.id }}" class="button">Contribute Now</button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="accuracy-section">
+    <h2>Prediction Accuracy</h2>
+    
+    <div class="card">
+        <div class="card-header">
+            <h3>7-Day Accuracy Trend</h3>
+        </div>
+        
+        <div class="chart-container">
+            <img src="data:image/png;base64,{{ accuracy_chart }}" alt="Accuracy Chart" class="chart-image">
+        </div>
+    </div>
+</div>
+
+<div class="access-tiers-section">
+    <h2>Access Tiers</h2>
+    
+    <div class="grid">
+        <div class="card tier-card">
+            <div class="tier-header">
+                <h3>Civilian</h3>
+                <div class="badge primary">Free</div>
+            </div>
+            <ul class="tier-features">
+                <li>Basic weather forecasts</li>
+                <li>Global, regional, and local maps</li>
+                <li>24-hour predictions</li>
+                <li>Basic alerts</li>
+            </ul>
+            <a href="{{ url_for('auth.register') }}" class="button">Sign Up</a>
+        </div>
+        
+        <div class="card tier-card">
+            <div class="tier-header">
+                <h3>News/Weather Agency</h3>
+                <div class="badge secondary">API Access</div>
+            </div>
+            <ul class="tier-features">
+                <li>All Civilian features</li>
+                <li>API access for integration</li>
+                <li>7-day detailed forecasts</li>
+                <li>Historical data access</li>
+                <li>Priority processing</li>
+            </ul>
+            <a href="{{ url_for('main.agency_signup') }}" class="button">Apply</a>
+        </div>
+        
+        <div class="card tier-card">
+            <div class="tier-header">
+                <h3>Government/Military</h3>
+                <div class="badge accent">Advanced</div>
+            </div>
+            <ul class="tier-features">
+                <li>All Agency features</li>
+                <li>Advanced prediction models</li>
+                <li>30-day forecasts</li>
+                <li>Custom data integration</li>
+                <li>Dedicated support</li>
+                <li>Highest priority processing</li>
+            </ul>
+            <a href="{{ url_for('main.gov_signup') }}" class="button">Contact Us</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Simulate system stats for demonstration
+    document.addEventListener('DOMContentLoaded', function() {
+        // This would be replaced with real data in production
+        if (!document.querySelector('.system-stats-section')) {
+            return;
+        }
+        
+        const systemStats = {
+            active_devices: {{ system_stats.active_devices|default(0) }},
+            average_prediction_accuracy: {{ system_stats.average_prediction_accuracy|default(0) }},
+            completed_tasks: {{ system_stats.completed_tasks|default(0) }},
+            total_cpu_power: {{ system_stats.total_cpu_power|default(0) }},
+            system_load: {{ system_stats.system_load|default(0) }}
+        };
+        
+        // Update stats periodically to simulate real-time updates
+        setInterval(() => {
+            // Randomly adjust values slightly
+            systemStats.active_devices += Math.floor(Math.random() * 3) - 1;
+            systemStats.completed_tasks += Math.floor(Math.random() * 5);
+            systemStats.system_load = Math.min(1, Math.max(0, systemStats.system_load + (Math.random() * 0.02 - 0.01)));
+            
+            // Update DOM
+            document.querySelector('.stat-value:nth-child(1)').textContent = systemStats.active_devices;
+            document.querySelector('.stat-value:nth-child(3)').textContent = systemStats.completed_tasks;
+            
+            const loadBar = document.querySelector('.progress-bar-fill');
+            const loadLabel = document.querySelector('.progress-label');
+            
+            loadBar.style.width = `${systemStats.system_load * 100}%`;
+            loadLabel.textContent = `${(systemStats.system_load * 100).toFixed(1)}% of capacity`;
+            
+            // Change color based on load
+            if (systemStats.system_load > 0.8) {
+                loadBar.className = 'progress-bar-fill danger';
+            } else if (systemStats.system_load > 0.6) {
+                loadBar.className = 'progress-bar-fill warning';
+            } else {
+                loadBar.className = 'progress-bar-fill';
+            }
+        }, 5000);
+    });
+</script>
+{% endblock %}

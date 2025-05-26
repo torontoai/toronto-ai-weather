@@ -1,0 +1,81 @@
+"""
+Docker Compose configuration for Toronto AI Weather application.
+"""
+
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/toronto_ai_weather
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-default_dev_key_change_in_production}
+      - MAIL_SERVER=${MAIL_SERVER:-smtp.example.com}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USE_TLS=${MAIL_USE_TLS:-true}
+      - MAIL_USERNAME=${MAIL_USERNAME:-user}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-password}
+      - MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER:-noreply@torontoaiweather.com}
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./src:/app/src
+    restart: unless-stopped
+
+  db:
+    image: postgres:14
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=toronto_ai_weather
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  celery:
+    build: .
+    command: celery -A src.celery_worker.celery worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/toronto_ai_weather
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-default_dev_key_change_in_production}
+    depends_on:
+      - web
+      - db
+      - redis
+    volumes:
+      - ./src:/app/src
+    restart: unless-stopped
+
+  celery-beat:
+    build: .
+    command: celery -A src.celery_worker.celery beat --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/toronto_ai_weather
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-default_dev_key_change_in_production}
+    depends_on:
+      - web
+      - db
+      - redis
+    volumes:
+      - ./src:/app/src
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
